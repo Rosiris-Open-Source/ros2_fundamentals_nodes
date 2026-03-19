@@ -1,0 +1,8 @@
+#ignore build generated files
+build/
+install/
+log/
+
+# exclude the repositories
+src/image_common
+src/vision_opencv
