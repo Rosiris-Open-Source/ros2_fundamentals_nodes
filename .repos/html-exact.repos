@@ -1,0 +1,9 @@
+repositories:
+  src/image_common:
+    type: git
+    url: https://github.com/ros-perception/image_common.git
+    version: 057baba233ae5ede62f4e6c90a9e3ae4176017a4
+  src/vision_opencv:
+    type: git
+    url: https://github.com/ros-perception/vision_opencv.git
+    version: 50f6f1feccc65dd2ef87f863cb812a8aa0789062

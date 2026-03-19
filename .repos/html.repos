@@ -1,0 +1,9 @@
+repositories:
+  src/image_common:
+    type: git
+    url: https://github.com/ros-perception/image_common.git
+    version: kilted
+  src/vision_opencv:
+    type: git
+    url: https://github.com/ros-perception/vision_opencv.git
+    version: rolling
