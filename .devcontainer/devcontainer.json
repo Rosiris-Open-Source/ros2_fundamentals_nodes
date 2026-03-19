@@ -65,5 +65,5 @@
         "RMW_IMPLEMENTATION": "rmw_cyclonedds_cpp",
         "ROS_DOMAIN_ID": "0"
     },
-    "postStartCommand": "bash -c 'if [ -f /home/${localEnv:USER}/workspace/.env/setup_env.bash ]; then source /home/${localEnv:USER}/workspace/.env/setup_env.bash; fi'"
+    "postStartCommand": "bash -c 'if [ -f /home/${localEnv:USER}/workspace/.workspace_env/setup_env.bash ]; then source /home/${localEnv:USER}/workspace/.workspace_env/setup_env.bash; fi'"
 }
