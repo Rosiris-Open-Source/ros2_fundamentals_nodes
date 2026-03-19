@@ -232,7 +232,15 @@ function full_qualified_env_tag {
     fi
 }
 
+function venv_prompt {
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        echo -n "($(basename "$VIRTUAL_ENV")) "
+    fi
+}
+
 function __update_prompt {
+  local venv
+  venv="$(venv_prompt)"
   local git_component
   git_component="$(full_qualified_git_branch)"
   local env_color
@@ -240,7 +248,7 @@ function __update_prompt {
   local env_tag
   env_tag="$(full_qualified_env_tag)"
 
-  PS1="\[${TERMINAL_COLOR_LIGHT_GREEN}\]\u\
+  PS1="${venv}\[${TERMINAL_COLOR_LIGHT_GREEN}\]\u\
 \[${TERMINAL_COLOR_LIGHT_GRAY}\]@\
 \[${env_color}\]\h\
 \[${env_tag}\]\
