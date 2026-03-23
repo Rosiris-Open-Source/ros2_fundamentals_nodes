@@ -1,0 +1,4 @@
+ python -m venv .venv --system-site-packages
+ source .venv/bin/activate
+ pip install src/hand_detector/
+ python -m colcon build --symlink-install
