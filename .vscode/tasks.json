@@ -80,6 +80,23 @@
       }
     },
     {
+      "label": "trash package",
+      "type": "shell",
+      "command": "trash",
+      "args": [
+        "-i",
+        "build/${input:clean_pattern}",
+        "install/${input:clean_pattern}",
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
       "label": "rosdep install",
       "type": "shell",
       "group": "build",
