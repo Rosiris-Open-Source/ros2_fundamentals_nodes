@@ -4,12 +4,14 @@ import numpy as np
 import os
 import rclpy
 
-from ament_index_python.packages import get_package_share_directory
-from cv_bridge import CvBridge
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from cv_bridge import CvBridge
+
+from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from hand_detector_interfaces.msg import EstimatedPalmCenters, PalmCenter
 
 # Visualization constants
 FONT_SIZE = 1
@@ -38,17 +40,21 @@ class HandDetectorNode(Node):
         self.detector = vision.HandLandmarker.create_from_options(options)
 
         # Subscriber for input images
-        self.sub = self.create_subscription(
+        self.raw_image_sub = self.create_subscription(
             Image,
             '/image',
             self.image_callback,
             10
         )
+        self.get_logger().info(f'Hand Detector Node started, listening on {self.raw_image_sub.handle.get_topic_name()}')
 
         # Publisher for annotated images
-        self.pub = self.create_publisher(Image, '~/image', 10)
+        self.annotated_image_pub = self.create_publisher(Image, '~/annotated_image', 10)
+        self.get_logger().info(f"Publishing annotated image on {self.annotated_image_pub.handle.get_topic_name()}")
+        
+        self.estimated_palm_center_pub = self.create_publisher(EstimatedPalmCenters, '~/estimated_palm_centers', 10)
 
-        self.get_logger().info('Hand Detector Node started, listening on /image')
+        
 
     def image_callback(self, msg: Image):
         # Convert ROS Image → OpenCV BGR
@@ -65,13 +71,24 @@ class HandDetectorNode(Node):
         img_landmarks = self.draw_landmarks_on_image(frame, results)
 
         # get centers of palms and draw on img
-        palm_centers = self.estimate_palm_centers(img_landmarks, results)
-        annotated_image = self.draw_estimated_palm_centers(img_landmarks, palm_centers)
+        est_palm_centers = self.estimate_palm_centers(img_landmarks, results)
+        annotated_image = self.draw_estimated_palm_centers(img_landmarks, est_palm_centers)
+        # convert to msg and publish
+        palm_centers_msg = EstimatedPalmCenters()
+        palm_centers_msg.header.stamp = self.get_clock().now().to_msg()
+        for name, center in est_palm_centers.items():
+            palm_center = PalmCenter()
+            palm_center.palm_id = name
+            palm_center.position.x = float(center[0])
+            palm_center.position.y = float(center[1])
+            palm_centers_msg.centers.append(palm_center)
+
+        self.estimated_palm_center_pub.publish(palm_centers_msg)
 
         # Publish annotated image
-        out_msg = self.bridge.cv2_to_imgmsg(annotated_image, encoding='bgr8')
-        out_msg.header = msg.header
-        self.pub.publish(out_msg)
+        annotated_img_msg = self.bridge.cv2_to_imgmsg(annotated_image, encoding='bgr8')
+        annotated_img_msg.header = msg.header
+        self.annotated_image_pub.publish(annotated_img_msg)
 
     def draw_landmarks_on_image(self, rgb_image, detection_result):
         mp_hands = mp.tasks.vision.HandLandmarksConnections

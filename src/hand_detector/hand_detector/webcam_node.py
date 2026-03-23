@@ -14,7 +14,9 @@ class WebcamNode(Node):
         super().__init__('webcam_node')
         self.publisher_ = self.create_publisher(Image, '~/image', 10)
         self.bridge = CvBridge()
-        self.cap = cv2.VideoCapture(0)
+        self.device = 0
+        self.cap = cv2.VideoCapture(self.device)
+        self.get_logger().info(f'Publishing image from device: {self.device} on publisher: {self.publisher_.handle.get_topic_name()}')
 
         self.timer = self.create_timer(0.01, self.timer_callback) 
 
