@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import threading
 
 import rclpy
 from rclpy.node import Node
@@ -21,6 +22,17 @@ class PingPongNode(Node):
         self.detection_max = 420.0
         self.two_player_mode = False
 
+        # player definitions
+        self.left_player_lock = threading.Lock()
+        self.left_player_id = "Right_hand_0"
+
+        # Subscriber for detected palm centers
+        self.palm_centers = self.create_subscription(
+            EstimatedPalmCenters,
+            '/hand_detector/estimated_palm_centers',
+            self.update_paddle_positions,
+            10
+        )
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         pygame.display.set_caption("ROS2 Ping Pong")
 
@@ -30,9 +42,9 @@ class PingPongNode(Node):
 
         # Paddle settings
         self.PADDLE_WIDTH, self.PADDLE_HEIGHT = 10, 100
-        self.paddle1 = pygame.Rect(30, self.HEIGHT//2 - 50,
+        self.left_paddle = pygame.Rect(30, self.HEIGHT//2 - 50,
                                    self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
-        self.paddle2 = pygame.Rect(self.WIDTH - 40, self.HEIGHT//2 - 50,
+        self.right_paddle = pygame.Rect(self.WIDTH - 40, self.HEIGHT//2 - 50,
                                    self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
 
         self.paddle_speed = 6
@@ -53,9 +65,27 @@ class PingPongNode(Node):
 
         # Clock
         self.clock = pygame.time.Clock()
+        self.timer = self.create_timer(1.0 / 60.0, self.update_game)
 
-        # Timer (30 Hz)
-        self.timer = self.create_timer(1.0 / 30.0, self.update_game)
+
+    def update_paddle_positions(self, msg: EstimatedPalmCenters):
+        for palm_center in msg.centers:
+            if palm_center.palm_id == self.left_player_id:
+                y_pos_rel = 1.0 - ((self.detection_max - palm_center.position.y) / (self.detection_max - self.detection_min))
+                with self.left_player_lock: 
+                    self.left_paddle.y  = y_pos_rel * self.HEIGHT
+                    self.left_paddle.y = max(0, min(self.HEIGHT - self.PADDLE_HEIGHT, self.left_paddle.y))
+
+
+    def update_left_paddle(self):
+        keys = pygame.key.get_pressed()
+        with self.left_player_lock:
+            if keys[pygame.K_w]:
+                self.left_paddle.y -= self.paddle_speed
+            if keys[pygame.K_s]:
+                self.left_paddle.y += self.paddle_speed
+            # Clamp paddles
+            self.left_paddle.y = max(0, min(self.HEIGHT - self.PADDLE_HEIGHT, self.left_paddle.y))
 
     def update_game(self):
         # Handle events
@@ -65,29 +95,21 @@ class PingPongNode(Node):
                 rclpy.shutdown()
                 sys.exit()
 
-        # Player controls
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_w]:
-            self.paddle1.y -= self.paddle_speed
-        if keys[pygame.K_s]:
-            self.paddle1.y += self.paddle_speed
-
+        self.update_left_paddle()
         # AI movement
         target = self.ball.centery + random.randint(-self.ball_uncertainty,
                                                     self.ball_uncertainty)
-
-        if self.paddle2.centery < target:
-            self.paddle2.y += self.ai_speed - random.uniform(
+        if self.right_paddle.centery < target:
+            self.right_paddle.y += self.ai_speed - random.uniform(
                 self.speed_min_penalty, self.speed_max_penalty)
-        elif self.paddle2.centery > target:
-            self.paddle2.y -= self.ai_speed + random.uniform(
+        elif self.right_paddle.centery > target:
+            self.right_paddle.y -= self.ai_speed + random.uniform(
                 self.speed_min_penalty, self.speed_max_penalty)
         else:
-            self.paddle2.y += self.ai_speed * random.randint(-1, 1)
+            self.right_paddle.y += self.ai_speed * random.randint(-1, 1)
 
         # Clamp paddles
-        self.paddle1.y = max(0, min(self.HEIGHT - self.PADDLE_HEIGHT, self.paddle1.y))
-        self.paddle2.y = max(0, min(self.HEIGHT - self.PADDLE_HEIGHT, self.paddle2.y))
+        self.right_paddle.y = max(0, min(self.HEIGHT - self.PADDLE_HEIGHT, self.right_paddle.y))
 
         # Ball movement
         self.ball.x += self.ball_speed_x
@@ -97,7 +119,7 @@ class PingPongNode(Node):
         if self.ball.top <= 0 or self.ball.bottom >= self.HEIGHT:
             self.ball_speed_y *= -1
 
-        if self.ball.colliderect(self.paddle1) or self.ball.colliderect(self.paddle2):
+        if self.ball.colliderect(self.left_paddle) or self.ball.colliderect(self.right_paddle):
             self.ball_speed_x *= -1
 
         # Scoring
@@ -111,8 +133,8 @@ class PingPongNode(Node):
 
         # Draw
         self.screen.fill(self.BLACK)
-        pygame.draw.rect(self.screen, self.WHITE, self.paddle1)
-        pygame.draw.rect(self.screen, self.WHITE, self.paddle2)
+        pygame.draw.rect(self.screen, self.WHITE, self.left_paddle)
+        pygame.draw.rect(self.screen, self.WHITE, self.right_paddle)
         pygame.draw.ellipse(self.screen, self.WHITE, self.ball)
 
         score_text = self.font.render(f"{self.score1}   {self.score2}", True, self.WHITE)
