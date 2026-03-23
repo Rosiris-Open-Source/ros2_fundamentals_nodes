@@ -11,10 +11,11 @@ from mediapipe.tasks.python import vision
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 
-MARGIN = 10  # pixels
+# Visualization constants
 FONT_SIZE = 1
 FONT_THICKNESS = 1
 HANDEDNESS_TEXT_COLOR = (88, 205, 54)
+MARGIN = 10  # pixels
 
 class HandDetectorNode(Node):
     def __init__(self):
@@ -23,12 +24,17 @@ class HandDetectorNode(Node):
         # CV Bridge
         self.bridge = CvBridge()
 
-        # MediaPipe Hands setup
+        # MediaPipe Hand Landmarker setup
         package_path = get_package_share_directory('hand_detector')
         model_path = os.path.join(package_path, 'models', 'hand_landmarker.task')
         base_options = python.BaseOptions(model_asset_path=model_path)
-        options = vision.HandLandmarkerOptions(base_options=base_options,
-                                            num_hands=2)
+
+        options = vision.HandLandmarkerOptions(
+            base_options=base_options,
+            num_hands=2,
+            running_mode=vision.RunningMode.VIDEO
+        )
+
         self.detector = vision.HandLandmarker.create_from_options(options)
 
         # Subscriber for input images
@@ -51,14 +57,21 @@ class HandDetectorNode(Node):
         # Convert to RGB for MediaPipe
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        results = self.detector.detect(mp_image)
-        annotated_image = self.draw_landmarks_on_image(frame, results)
-        
+        # VIDEO mode requires timestamp in milliseconds
+        timestamp_ms = int(msg.header.stamp.sec * 1000 + msg.header.stamp.nanosec / 1e6)
+        results = self.detector.detect_for_video(mp_image, timestamp_ms)
+
+        # Draw landmarks and palm center
+        img_landmarks = self.draw_landmarks_on_image(frame, results)
+
+        # get centers of palms and draw on img
+        palm_centers = self.estimate_palm_centers(img_landmarks, results)
+        annotated_image = self.draw_estimated_palm_centers(img_landmarks, palm_centers)
+
         # Publish annotated image
         out_msg = self.bridge.cv2_to_imgmsg(annotated_image, encoding='bgr8')
         out_msg.header = msg.header
         self.pub.publish(out_msg)
-
 
     def draw_landmarks_on_image(self, rgb_image, detection_result):
         mp_hands = mp.tasks.vision.HandLandmarksConnections
@@ -66,33 +79,84 @@ class HandDetectorNode(Node):
         mp_drawing_styles = mp.tasks.vision.drawing_styles
 
         hand_landmarks_list = detection_result.hand_landmarks
-        handedness_list = detection_result.handedness
         annotated_image = np.copy(rgb_image)
-
-        # Loop through the detected hands to visualize.
-        for idx in range(len(hand_landmarks_list)):
-            hand_landmarks = hand_landmarks_list[idx]
-            handedness = handedness_list[idx]
-
-            # Draw the hand landmarks.
+        for hand_landmarks in hand_landmarks_list:
+           
+            # Draw landmarks and connections
             mp_drawing.draw_landmarks(
-            annotated_image,
-            hand_landmarks,
-            mp_hands.HAND_CONNECTIONS,
-            mp_drawing_styles.get_default_hand_landmarks_style(),
-            mp_drawing_styles.get_default_hand_connections_style())
+                annotated_image,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,
+                mp_drawing_styles.get_default_hand_landmarks_style(),
+                mp_drawing_styles.get_default_hand_connections_style()
+            )            
 
-            # Get the top left corner of the detected hand's bounding box.
-            height, width, _ = annotated_image.shape
-            x_coordinates = [landmark.x for landmark in hand_landmarks]
-            y_coordinates = [landmark.y for landmark in hand_landmarks]
-            text_x = int(min(x_coordinates) * width)
-            text_y = int(min(y_coordinates) * height) - MARGIN
+        return annotated_image
+    
+    def estimate_palm_centers(self, rgb_image, detection_result):
+        hand_landmarks_list = detection_result.hand_landmarks
+        height, width, _ = rgb_image.shape
+        handedness_list = detection_result.handedness
 
-            # Draw handedness (left or right hand) on the image.
-            cv2.putText(annotated_image, f"{handedness[0].category_name}",
-                        (text_x, text_y), cv2.FONT_HERSHEY_DUPLEX,
-                        FONT_SIZE, HANDEDNESS_TEXT_COLOR, FONT_THICKNESS, cv2.LINE_AA)
+        estimated_palm_centers =  {}
+
+        for idx, hand_landmarks in enumerate(hand_landmarks_list):
+            handedness = handedness_list[idx][0].category_name
+            # Compute rough palm center using wrist + base MCP joints
+            palm_indices = [0, 1, 5, 17]  # wrist + palm base
+            palm_x = int(np.mean([hand_landmarks[i].x * width for i in palm_indices]))
+            palm_y = int(np.mean([hand_landmarks[i].y * height for i in palm_indices]))
+            estimated_palm_centers[f"{handedness}_hand_{idx}"] = (palm_x, palm_y)
+
+        return estimated_palm_centers
+
+    def draw_estimated_palm_centers(self, image, estimated_palm_centers : dict[str, tuple[int,int]], color=(0,0,0)):
+        annotated_image = np.copy(image)
+        for _, center in estimated_palm_centers.items():
+            cv2.circle(annotated_image, (center[0], center[1]), 8, color, -1)
+        return annotated_image
+                
+    
+    def draw_handeness_on_image(self, rgb_image, detection_result):
+        hand_landmarks_list = detection_result.hand_landmarks
+        annotated_image = np.copy(rgb_image)
+        height, width, _ = annotated_image.shape
+        handedness_list = detection_result.handedness
+
+        for idx, hand_landmarks in enumerate(hand_landmarks_list):
+            handedness = handedness_list[idx][0].category_name  # "Left" or "Right"
+            
+            # Compute bounding box around landmarks
+            xs = [lm.x * width for lm in hand_landmarks]
+            ys = [lm.y * height for lm in hand_landmarks]
+            x1, y1 = int(min(xs)), int(min(ys))
+
+            # Draw handedness above the bounding box
+            cv2.putText(
+                annotated_image,
+                f"{handedness}",
+                (x1, y1 - MARGIN),
+                cv2.FONT_HERSHEY_DUPLEX,
+                FONT_SIZE,
+                HANDEDNESS_TEXT_COLOR,
+                FONT_THICKNESS,
+                cv2.LINE_AA
+            )
+
+        return annotated_image
+    
+    def draw_bounding_box_around_hand(self, rgb_image, detection_result):
+        hand_landmarks_list = detection_result.hand_landmarks
+        annotated_image = np.copy(rgb_image)
+        height, width, _ = annotated_image.shape
+
+        for hand_landmarks in hand_landmarks_list:
+            # Compute bounding box around landmarks
+            xs = [lm.x * width for lm in hand_landmarks]
+            ys = [lm.y * height for lm in hand_landmarks]
+            x1, y1 = int(min(xs)), int(min(ys))
+            x2, y2 = int(max(xs)), int(max(ys))
+            cv2.rectangle(annotated_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
         return annotated_image
 
