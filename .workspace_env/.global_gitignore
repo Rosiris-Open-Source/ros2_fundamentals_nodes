@@ -9,3 +9,4 @@
 *$py.class
 *.egg-info/
 *.egg
+*py.typed
