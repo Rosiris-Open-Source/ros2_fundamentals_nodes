@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
     bash-completion \
     curl \
     git \
+    git-lfs \
     lsb-release \
     sudo \
     trash-cli \
