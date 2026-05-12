@@ -13,6 +13,7 @@ class PingPongNode(Node):
     def __init__(self):
         super().__init__('ping_pong_node')
 
+
         # Initialize pygame
         pygame.init()
 
@@ -20,15 +21,6 @@ class PingPongNode(Node):
         self.WIDTH, self.HEIGHT = 1000, 800
         self.detection_min = 75.0
         self.detection_max = 420.0
-        # Declare ROS2 parameter
-        self.declare_parameter('two_player_mode', False)
-
-        # Get parameter value
-        self.two_player_mode = (
-            self.get_parameter('two_player_mode')
-            .get_parameter_value()
-            .bool_value
-        )
 
         # player definitions
         self.left_player_lock = threading.Lock()
@@ -36,13 +28,6 @@ class PingPongNode(Node):
         self.right_player_lock = threading.Lock()
         self.right_player_id = "Left_hand"
 
-        # Subscriber for detected palm centers
-        self.palm_centers = self.create_subscription(
-            EstimatedPalmCenters,
-            '/hand_detector/estimated_palm_centers',
-            self.update_paddle_positions_from_estimate,
-            10
-        )
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         pygame.display.set_caption("ROS2 Ping Pong")
 
@@ -76,6 +61,25 @@ class PingPongNode(Node):
         # Clock
         self.clock = pygame.time.Clock()
         self.timer = self.create_timer(1.0 / 60.0, self.update_game)
+
+        # ROS2 dependencies
+        # Declare ROS2 parameter for two player mode
+        self.declare_parameter('two_player_mode', False)
+
+        # Get parameter value
+        self.two_player_mode = (
+            self.get_parameter('two_player_mode')
+            .get_parameter_value()
+            .bool_value
+        )
+
+        # Subscriber for detected palm centers
+        self.palm_centers = self.create_subscription(
+            EstimatedPalmCenters,
+            '/hand_detector/estimated_palm_centers',
+            self.update_paddle_positions_from_estimate,
+            10
+        )
 
     def update_paddle_positions_from_estimate(self, msg: EstimatedPalmCenters):
         for palm_center in msg.centers:
