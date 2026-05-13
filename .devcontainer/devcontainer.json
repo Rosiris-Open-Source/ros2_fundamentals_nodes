@@ -2,8 +2,14 @@
     "name": "hand_location_detection_trial",
     "build": {
         "dockerfile": "../.docker/Dockerfile",
-        "context": ".."
+        "context": "..",
+        "args": {
+            "USER_NAME": "${localEnv:USER}",
+            "USER_PASSWORD": "${localEnv:USER}"
+        }
     },
+    "containerUser": "${localEnv:USER}",
+    "updateRemoteUserUID": true,
     "customizations": {
         "vscode": {
             "extensions": [
