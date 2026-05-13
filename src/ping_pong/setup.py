@@ -25,7 +25,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'ping_pong = ping_pong.ping_pong_game_node:main'
+            'ping_pong = ping_pong.ping_pong_game_node:main',
+            'ping_pong_rviz2 = ping_pong.ping_pong_game_rviz2_node:main'
         ],
     },
 )
