@@ -7,7 +7,6 @@
   <maintainer email="mamueluth@gmail.com">Manuel M.</maintainer>
   <license>Apache-2.0</license>
 
-  <depend>python3-pygame</depend>
   <depend>rclpy</depend>
 
   <test_depend>ament_copyright</test_depend>
