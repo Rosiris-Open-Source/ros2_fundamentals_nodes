@@ -36,8 +36,6 @@ jobs:
           build-args: |
             USER_NAME=ros
             USER_PASSWORD=ros
-            USER_UID=1000
-            USER_GID=1000
 
   publish:
     needs: build
@@ -71,7 +69,5 @@ jobs:
           build-args: |
             USER_NAME=ros
             USER_PASSWORD=ros
-            USER_UID=1000
-            USER_GID=1000
           cache-from: type=gha
           cache-to: type=gha,mode=max
