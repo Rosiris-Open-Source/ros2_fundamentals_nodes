@@ -3,10 +3,11 @@ FROM osrf/ros:kilted-desktop-full
 
 # Environment - Setup ARGs and ENV, after FROM reset all args.
 ARG DEBIAN_FRONTEND=noninteractive
-ARG USER_NAME
-ARG USER_PASSWORD
-ARG USER_UID
-ARG USER_GID
+# set some defaults for deployment, can be overridden by build args
+ARG USER_NAME=ros
+ARG USER_PASSWORD=ros
+ARG USER_UID=1000
+ARG USER_GID=1000
 ENV UID=$USER_UID
 ENV GID=$USER_GID
 ENV USER=$USER_NAME

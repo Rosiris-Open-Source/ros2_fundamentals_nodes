@@ -5,11 +5,11 @@
         "context": "..",
         "args": {
             "USER_NAME": "${localEnv:USER}",
-            "USER_PASSWORD": "${localEnv:USER}",
-            "USER_UID": "1000",
-            "USER_GID": "1000"
+            "USER_PASSWORD": "${localEnv:USER}"
         }
     },
+    "containerUser": "${localEnv:USER}",
+    "updateRemoteUserUID": true,
     "customizations": {
         "vscode": {
             "extensions": [
