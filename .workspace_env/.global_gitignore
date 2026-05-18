@@ -1,12 +1,3 @@
 # Trashed files
 **/.Trash-*/
 **/.nfs*
-
-# Python
-**/__pycache__/
-**/__test_node__*.py
-*.py[cod]
-*$py.class
-*.egg-info/
-*.egg
-*py.typed

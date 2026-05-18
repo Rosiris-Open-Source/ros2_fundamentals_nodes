@@ -54,7 +54,7 @@ Start nodes in order.
 ```bash
 ros2 run hand_detector webcam_node
 ros2 run hand_detector hand_detector_node --ros-args -r /image:=webcam_node/image
-ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 world pong_world pong_world
+ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 world pong_world
 ros2 run ping_pong ping_pong_rviz2
 ```
 

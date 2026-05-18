@@ -1,4 +1,12 @@
-.venv/
+# Python
+**/__pycache__/
+**/__test_node__*.py
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+*py.typed
+*.venv/
 
 #ignore build generated files
 build/
