@@ -57,6 +57,7 @@ function setup_global_gitignore() {
     local current desired
     current="$(git config --global --get core.excludesFile 2>/dev/null || echo "")"
     desired="$(setup_env_dir)/.global_gitignore"
+
     if [[ "${current}" != "${desired}" ]]; then
         git config --global core.excludesFile "${desired}"
     fi
@@ -82,6 +83,7 @@ function setup_bashrc_bootstrap() {
             echo "# Workspace environment bootstrap — added by setup_env.bash"
             echo "${source_line}"
         } >> "$HOME/.bashrc"
+
         touch "${guard_file}"
     fi
 }
@@ -102,26 +104,37 @@ function setup_env() {
     setup_global_gitignore
 
     # ── Core libraries (order matters: colors -> log -> preflight) ────────────────
-    source "$(setup_env_dir)/lib/colors.bash"
-    source "$(setup_env_dir)/lib/log.bash"
-    source "$(setup_env_dir)/lib/preflight.bash"
+    source "${env_dir}/lib/colors.bash"
+    source "${env_dir}/lib/log.bash"
+    source "${env_dir}/lib/preflight.bash"
 
     # Prompt
     local prompt_script="${env_dir}/prompt/prompt.bash"
-    [[ -f "${prompt_script}" ]] && source "${prompt_script}"
+    if [[ -f "${prompt_script}" ]]; then
+        source "${prompt_script}"
+    fi
 
     # All custom commands: lib/* + setup_workspace functions
     local commands_script="${env_dir}/bash_commands.bash"
-    [[ -f "${commands_script}" ]] && source "${commands_script}"
+    if [[ -f "${commands_script}" ]]; then
+        source "${commands_script}"
+    fi
 
     # Aliases
     local aliases_script="${env_dir}/bash_aliases.bash"
-    [[ -f "${aliases_script}" ]] && source "${aliases_script}"
+    if [[ -f "${aliases_script}" ]]; then
+        source "${aliases_script}"
+    fi
 
     # ROS 2 install overlay (optional — may not exist on a fresh machine)
     local ros_setup
     ros_setup="$(setup_env_workspace_dir)/install/setup.bash"
-    [[ -f "${ros_setup}" ]] && source "${ros_setup}"
+
+    if [[ -f "${ros_setup}" ]]; then
+        source "${ros_setup}"
+    fi
+
+    return 0
 }
 
 setup_env
