@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,139 +13,67 @@
 # limitations under the License.
 #
 # Authors: Manuel Muth
+# bash_commands.bash — Master include for all custom shell commands.
+#
+# Source this file from setup_env.bash (or your ~/.bashrc directly).
+# After sourcing, the following commands are available:
+#
+#   ── Workspace build ───────────────────────────────────────────
+#   ws_setup [--clean]        Full ROS 2 workspace setup / rebuild
+#   ws_build                  Run only the colcon build step
+#   ws_clean                  Remove build artefacts and venv
+#   ws_source                 Source the install overlay
+#   ws_preflight              Run pre-flight checks only
+#
+#   ── Workspace navigation ──────────────────────────────────────
+#   cdws                      cd to workspace root
+#   cdwss                     cd to workspace root/src
+#   cdwsb                     cd to workspace root/build
+#   cdwsi                     cd to workspace root/install
+#   cdwsl                     cd to workspace root/log
+#   wsls                      List workspace root contents
+#
+#   ── ROS 2 helpers ─────────────────────────────────────────────
+#   ros2_get_node_pid         Show PID(s) of ROS 2 node(s)
+#   ros2_kill_node            Kill a node by name
+#   ros2_kill_all_nodes       Kill all ROS 2 nodes
+#
+#   ── Shell utilities ───────────────────────────────────────────
+#   kill_background_task      Interactively kill a background job
+#   mkdircd                   mkdir -p + cd in one step
+#
+#   ── Logging (reusable in scripts) ────────────────────────────
+#   log_info / log_ok / log_warn / log_error / die
+#   log_init                  Initialise a log file
+#   log_enable_trap           Install ERR trap that calls die()
+#
+#   ── Pre-flight (reusable in scripts) ─────────────────────────
+#   require_cmd / require_file / require_dir / require_env
+#
+# All commands support -h / --help.
 
-# create a new directory and cd into it after creation
-mkdircd() {
-  mkdir -p "$1" && cd "$1"
-}
+[[ -n "${_BASH_COMMANDS_LOADED:-}" ]] && return 0
+readonly _BASH_COMMANDS_LOADED=1
 
-kill_background_task() {
-  # Get current jobs list
-  local job_list
-  job_list=$(jobs -p)
+# setup_env_dir is defined in setup_env.bash (fixed BASH_SOURCE at definition).
+# Fallback: resolve from this file's own location for standalone sourcing.
+if ! declare -f setup_env_dir >/dev/null 2>&1; then
+    function setup_env_dir() {
+        echo "$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+    }
+fi
 
-  # Exit if no jobs
-  if [[ -z "$job_list" ]]; then
-    echo "No background jobs to kill."
-    return
-  fi
+# ── Workspace build functions ─────────────────────────────────────────────────
+source "$(setup_env_dir)/lib/commands/setup_workspace.bash"
 
-  # Helper to kill a job by number
-  _kill_job_by_number() {
-    local job_num="$1"
-    if jobs %"$job_num" &>/dev/null; then
-      kill %"$job_num"
-      echo "Killed job %$job_num"
-    else
-      echo "Invalid job number: $job_num\n"
-      kill_background_task  # Recursive retry
-    fi
-  }
+# ── Individual command modules ────────────────────────────────────────────────
+source "$(setup_env_dir)/lib/commands/workspace_navigation.bash"
+source "$(setup_env_dir)/lib/commands/ros2_helpers.bash"
+source "$(setup_env_dir)/lib/commands/kill_background_task.bash"
+source "$(setup_env_dir)/lib/commands/mkdircd.bash"
 
-  # If argument is passed
-  if [[ -n "$1" ]]; then
-    _kill_job_by_number "$1"
-  else
-    # Show jobs
-    jobs
-    echo -n "Enter job number to kill (or press Enter to cancel): "
-    read jobnum
-    if [[ -z "$jobnum" ]]; then
-      echo "Cancelled."
-      return
-    fi
-    _kill_job_by_number "$jobnum"
-  fi
-}
-
-cdws() {
-  cd $(setup_env_workspace_dir)
-}
-
-cdwss() {
-  cd $(setup_env_workspace_dir)/src
-}
-
-cdwsb() {
-  cd $(setup_env_workspace_dir)/build
-}
-
-cdwsi() {
-  cd $(setup_env_workspace_dir)/install
-}
-
-# Get PID of a ROS2 node by name
-ros2_get_node_pid() {
-    local node_name=""
-    local all=false
-
-    # parse flags
-    for arg in "$@"; do
-        case "$arg" in
-            --all) all=true ;;
-            *)     node_name="$arg" ;;
-        esac
-    done
-
-    if [[ "$all" == false && -z "$node_name" ]]; then
-        echo "Usage: ros2_node_pid <node_name>" >&2
-        echo "       ros2_node_pid --all" >&2
-        return 1
-    fi
-
-    local results
-    if [[ "$all" == true ]]; then
-        results=$(ps aux | grep '\-\-ros-args')
-    else
-        results=$(ps aux | grep '\-\-ros-args' | grep "$node_name")
-    fi
-
-    if [[ -z "$results" ]]; then
-        echo "No ROS2 processes found" >&2
-        return 1
-    fi
-
-    echo "$results" | awk '{
-        pid = $2
-        exe = $11
-        printf "PID: %6s [ %s ]\n", pid, exe
-    }'
-}
-
-# Kill a ROS2 node by name
-ros2_kill_node() {
-    local node_name="$1"
-    local signal="${2:-SIGINT}"
-
-    if [[ -z "$node_name" ]]; then
-        echo "Usage: ros2_kill_node <node_name> [SIGNAL]" >&2
-        return 1
-    fi
-
-    local pids
-    pids=$(ps aux | grep '\-\-ros-args' | grep "$node_name" | awk '{print $2}')
-
-    if [[ -z "$pids" ]]; then
-        echo "No ROS2 process found for: '$node_name'" >&2
-        return 1
-    fi
-
-    echo "Sending $signal to '$node_name' (PID(s): $pids)"
-    echo "$pids" | xargs kill -s "$signal"
-}
-
-# Kill ALL ROS2 nodes
-ros2_kill_all_nodes() {
-    local signal="${1:-SIGINT}"
-
-    local pids
-    pids=$(ps aux | grep '\-\-ros-args' | awk '{print $2}')
-
-    if [[ -z "$pids" ]]; then
-        echo "No ROS2 processes found" >&2
-        return 1
-    fi
-
-    echo "Sending $signal to all ROS2 nodes (PID(s): $pids)"
-    echo "$pids" | xargs kill -s "$signal"
-}
+# ─────────────────────────────────────────────
+# Add new command modules here.
+# Create lib/commands/<name>.bash, source it,
+# and add its public functions to the table above.
+# ─────────────────────────────────────────────
