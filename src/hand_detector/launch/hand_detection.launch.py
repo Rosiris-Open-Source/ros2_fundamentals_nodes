@@ -3,6 +3,7 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 
@@ -64,10 +65,10 @@ def declare_nodes_to_launch():
 
     hand_detection_node = Node(
         package="hand_detector",
-        executable="hand_detection_node",
-        name="hand_detector",
+        executable="hand_detector_node",
+        name="hand_detector_node",
         remappings=[
-            ("image", "/webcam_node/image"),
+            ("/image", "/webcam_node/image"),
         ],
         output="screen",
     )
@@ -80,11 +81,12 @@ def declare_nodes_to_launch():
                    PathJoinSubstitution(
                     [FindPackageShare("hand_detector"), "config/view_hand_detector.rviz"]
         )],
-        condition=LaunchConfiguration("launch_rviz"),
+        condition=IfCondition(LaunchConfiguration("launch_rviz")),
         output="screen",
     )
 
     return [
         webcam_node,
         hand_detection_node,
+        rviz2
     ]

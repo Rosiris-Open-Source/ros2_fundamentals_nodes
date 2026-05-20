@@ -13,14 +13,14 @@
     </node>
 
     <!-- Hand detection node -->
-    <node pkg="hand_detector" exec="hand_detection_node" name="hand_detector" output="screen">
+    <node pkg="hand_detector" exec="hand_detector_node" name="hand_detector_node" output="screen">
         <!-- topic remap -->
-        <remap from="image" to="/webcam_node/image"/>
+        <remap from="/image" to="/webcam_node/image"/>
     </node>
 
     <!-- RViz -->
-    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" if="$(var launch_rviz)">
-        <arg name="config" value="$(find hand_detector)/config/view_hand_detector.rviz"/>
-    </node>
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
+        args="-d $(find-pkg-share hand_detector)/config/view_hand_detector.rviz"
+        if="$(var launch_rviz)"/>
 
 </launch>
