@@ -1,0 +1,55 @@
+%YAML 1.2
+---
+launch:
+
+  - arg:
+      name: video_device
+      default: "0"
+
+  - arg:
+      name: flip_img
+      default: "true"
+
+  - arg:
+      name: flip_img_opcode
+      default: "1"
+
+  - arg:
+      name: launch_rviz
+      default: "true"
+
+  - node:
+      pkg: hand_detector
+      exec: webcam_node
+      name: webcam_node
+      output: screen
+      param:
+        - name: device
+          value: $(var video_device)
+
+        - name: flip_img
+          value: $(var flip_img)
+
+        - name: flip_img_opcode
+          value: $(var flip_img_opcode)
+
+
+  - node:
+      pkg: hand_detector
+      exec: hand_detection_node
+      name: hand_detector
+      output: screen
+
+      remap:
+        - from: image
+          to: /webcam_node/image
+
+  - node:
+      pkg: rviz2
+      exec: rviz2
+      name: rviz2
+      arguments:
+        - "-d"
+        - $(find hand_detector)/config/view_hand_detector.rviz
+      condition: $(var launch_rviz)
+      output: screen

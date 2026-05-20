@@ -1,0 +1,26 @@
+<launch>
+    <!-- Arguments -->
+    <arg name="video_device" default="0"/>
+    <arg name="flip_img" default="true"/>
+    <arg name="flip_img_opcode" default="1"/>
+    <arg name="launch_rviz" default="true"/>
+
+    <!-- Webcam node -->
+    <node pkg="hand_detector" exec="webcam_node" name="webcam_node" output="screen">
+        <param name="device" value="$(var video_device)"/>
+        <param name="flip_img" value="$(var flip_img)"/>
+        <param name="flip_img_opcode" value="$(var flip_img_opcode)"/>
+    </node>
+
+    <!-- Hand detection node -->
+    <node pkg="hand_detector" exec="hand_detection_node" name="hand_detector" output="screen">
+        <!-- topic remap -->
+        <remap from="image" to="/webcam_node/image"/>
+    </node>
+
+    <!-- RViz -->
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" if="$(var launch_rviz)">
+        <arg name="config" value="$(find hand_detector)/config/view_hand_detector.rviz"/>
+    </node>
+
+</launch>

@@ -16,9 +16,5 @@
 
 alias sb='source ~/.bashrc'
 
-alias oa='code ~/.bash_aliases'
 alias ob='code ~/.bashrc'
-alias oc='code ~/.bash_commands'
 alias op='code ~/.bash_profile'
-
-alias kbt='kill_background_task'

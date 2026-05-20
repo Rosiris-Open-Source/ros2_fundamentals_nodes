@@ -22,8 +22,6 @@
 #       source setup_workspace.bash
 #       ws_setup          # full idempotent setup
 #       ws_setup --clean  # clean then full setup
-#       ws_build          # only the colcon build step
-#       ws_source         # only source the install overlay
 #
 #   Executed directly:
 #       ./setup_workspace.bash [--clean] [--help]
@@ -49,7 +47,7 @@ readonly _SETUP_WORKSPACE_LOADED=1
 if ! declare -f setup_env_dir >/dev/null 2>&1; then
     function setup_env_dir() {
         # lib/commands/ → lib/ → .workspace_env/
-        echo "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null && pwd)"
+        echo "$(cd "$(dirname "${BASH_SOURCE[0]}")/.workspace_env/" >/dev/null && pwd)"
     }
     function setup_env_workspace_dir() {
         echo "$(dirname "$(setup_env_dir)")"
@@ -69,6 +67,8 @@ source "$(setup_env_dir)/lib/preflight.bash"
 : "${WS_DIR:=$(setup_env_workspace_dir)}"
 : "${WS_REPOS_FILE:=${WS_DIR}/.repos/html.repos}"
 : "${WS_HAND_DETECTOR:=${WS_DIR}/src/hand_detector}"
+: "${WS_HAND_DETECTOR_INTERFACES:=${WS_DIR}/src/hand_detector_interfaces}"
+: "${WS_PING_PONG:=${WS_DIR}/src/ping_pong}"
 : "${WS_LOG_DIR:=${WS_DIR}/log}"
 : "${WS_VENV_DIR:=${WS_DIR}/.venv}"
 
@@ -101,6 +101,8 @@ ws_preflight() {
 
     require_file "${WS_REPOS_FILE}"
     require_dir  "${WS_HAND_DETECTOR}"
+    require_dir  "${WS_HAND_DETECTOR_INTERFACES}"
+    require_dir  "${WS_PING_PONG}"
 
     preflight_summary
 }
@@ -218,37 +220,6 @@ ws_rosdep_install() {
 }
 
 # ─────────────────────────────────────────────
-# ws_build — colcon build
-# ─────────────────────────────────────────────
-ws_build() {
-    log_info "Building ROS 2 workspace with colcon..."
-    python -m colcon \
-        --log-base "${WS_LOG_DIR}/colcon" \
-        build \
-        --symlink-install \
-        --base-paths   "${WS_DIR}" \
-        --build-base   "${WS_DIR}/build" \
-        --install-base "${WS_DIR}/install" \
-        >> "${LOG_FILE:-/dev/null}" 2>&1 \
-        || die "colcon build failed."
-    log_ok "Workspace built successfully."
-}
-
-# ─────────────────────────────────────────────
-# ws_source — source the install overlay
-# ─────────────────────────────────────────────
-ws_source() {
-    local overlay="${WS_DIR}/install/setup.bash"
-    if [[ -f "${overlay}" ]]; then
-        # shellcheck source=/dev/null
-        source "${overlay}"
-        log_ok "Sourced install overlay: ${overlay}"
-    else
-        log_warn "install/setup.bash not found — workspace may not be fully sourced."
-    fi
-}
-
-# ─────────────────────────────────────────────
 # ws_setup — full orchestration (public entrypoint)
 # ─────────────────────────────────────────────
 # Usage: ws_setup [--clean]
@@ -290,8 +261,6 @@ ws_setup() {
     ws_venv_setup
     ws_pip_install
     ws_rosdep_install
-    ws_build
-    ws_source
 
     log_disable_trap
 

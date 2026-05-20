@@ -63,9 +63,6 @@ if ! declare -f setup_env_dir >/dev/null 2>&1; then
     }
 fi
 
-# ── Workspace build functions ─────────────────────────────────────────────────
-source "$(setup_env_dir)/lib/commands/setup_workspace.bash"
-
 # ── Individual command modules ────────────────────────────────────────────────
 source "$(setup_env_dir)/lib/commands/workspace_navigation.bash"
 source "$(setup_env_dir)/lib/commands/ros2_helpers.bash"

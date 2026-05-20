@@ -1,25 +1,27 @@
 # Docker - Pull base image
 FROM osrf/ros:kilted-desktop-full
 
-# Environment - Setup ARGs and ENV, after FROM reset all args.
+# Environment - Setup ARGs and ENV
 ARG DEBIAN_FRONTEND=noninteractive
-# set some defaults for deployment, can be overridden by build args
+
+# User configuration
 ARG USER_NAME=ros
 ARG USER_PASSWORD=ros
 ARG USER_UID=1000
 ARG USER_GID=1000
+
 ENV UID=$USER_UID
 ENV GID=$USER_GID
 ENV USER=$USER_NAME
 ENV SHELL=/bin/bash
 ENV TZ=Europe/Berlin
 ENV TERM=xterm-256color
-ENV PATH=$PATH:/home/$USER/.local/bin
+ENV PATH=$PATH:/home/$USER/.cargo/bin:/home/$USER/.local/bin
 
-# Environment - Setup internationalization and styles.
+# Timezone setup
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Packages - Update and Install
+# System packages + Rust dependencies
 RUN apt-get update && apt-get install -y \
     bash-completion \
     curl \
@@ -44,42 +46,55 @@ RUN apt-get update && apt-get install -y \
     ros-kilted-rqt* \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
-# Make python and pip globally available if missing
-RUN [ ! -e /usr/bin/python ] && ln -s /usr/bin/python3 /usr/bin/python || true &&  \
-	[ ! -e /usr/bin/pip ] && ln -s /usr/bin/pip3 /usr/bin/pip || true
-# Initialize rosdep
+
+# Make python/pip available as python/pip
+RUN [ ! -e /usr/bin/python ] && ln -s /usr/bin/python3 /usr/bin/python || true && \
+    [ ! -e /usr/bin/pip ] && ln -s /usr/bin/pip3 /usr/bin/pip || true
+
+# Install rosdep
 RUN rosdep init || true
 
-# Remove existing ubuntu user if it exists and conflicts
+# Handle existing ubuntu user conflicts (if any)
 RUN if id "ubuntu" &>/dev/null; then \
-        if [ "$(id -u ubuntu)" = "${UID}" ] || [ "$(id -g ubuntu)" = "${GID}" ]; then \
-            userdel -r ubuntu 2>/dev/null || true; \
-            groupdel ubuntu 2>/dev/null || true; \
-        fi; \
-    fi
+if [ "$(id -u ubuntu)" = "${UID}" ] || [ "$(id -g ubuntu)" = "${GID}" ]; then \
+userdel -r ubuntu 2>/dev/null || true; \
+groupdel ubuntu 2>/dev/null || true; \
+fi; \
+fi
 
-# Remove existing group with target GID if it exists
+# Handle existing group with same GID
 RUN if getent group "${GID}" &>/dev/null; then \
-        groupdel "$(getent group "${GID}" | cut -d: -f1)" 2>/dev/null || true; \
-    fi
+groupdel "$(getent group "${GID}" | cut -d: -f1)" 2>/dev/null || true; \
+fi
 
-# Create user from Variables.
-RUN echo "Creating user ${USER} with UID ${UID} and GID ${GID}..."
-RUN groupadd --gid "${GID}" "${USER}" && \
-    useradd --uid "${UID}" --gid "${GID}" -m --shell $(which bash) "${USER}" -G sudo && \
-    echo "${USER}:${USER_PASSWORD}" | chpasswd && \
-    echo "%sudo ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/sudogrp && \
-    chmod 0440 /etc/sudoers.d/sudogrp && \
-    chown ${UID}:${GID} -R /home/${USER}
+# Create user
+RUN echo "Creating user ${USER} with UID ${UID} and GID ${GID}..." && \
+groupadd --gid "${GID}" "${USER}" && \
+useradd --uid "${UID}" --gid "${GID}" -m --shell $(which bash) "${USER}" -G sudo && \
+echo "${USER}:${USER_PASSWORD}" | chpasswd && \
+echo "%sudo ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/sudogrp && \
+chmod 0440 /etc/sudoers.d/sudogrp && \
+chown ${UID}:${GID} -R /home/${USER}
 
+# Switch to user
 USER $USER
 WORKDIR /home/$USER
 
-# Create workspace directory with correct ownership
+# Install Rust
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+# Install just via cargo
+RUN . "$HOME/.cargo/env" && \
+    cargo install just
+
+# Workspace
 RUN mkdir -p /home/$USER/workspace
-# Source ROS environment automatically
+
+# ROS environment setup
 RUN echo "source /opt/ros/kilted/setup.bash" >> /home/$USER/.bashrc
+
+# rosdep update (safe ignore failures in container builds)
 RUN rosdep update || true
 
-# Set up entrypoint
+# Entry point
 ENTRYPOINT ["/bin/bash", "-c", "exec bash"]
