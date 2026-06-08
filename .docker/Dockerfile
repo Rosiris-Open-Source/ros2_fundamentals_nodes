@@ -24,27 +24,28 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # System packages + Rust dependencies
 RUN apt-get update && apt-get install -y \
     bash-completion \
+    build-essential \
+    cmake \
     curl \
+    gdb \
     git \
     git-lfs \
     lsb-release \
-    sudo \
-    trash-cli \
-    tree \
-    vim \
-    wget \
-    build-essential \
-    cmake \
-    gdb \
     net-tools \
     python3 \
     python3-colcon-clean \
     python3-pip \
     python3-venv \
+    qgit \
     ros-dev-tools \
     ros-kilted-rmw-cyclonedds-cpp \
     ros-kilted-rqt* \
     software-properties-common \
+    sudo \
+    trash-cli \
+    tree \
+    vim \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Make python/pip available as python/pip

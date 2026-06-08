@@ -15,13 +15,8 @@ setup-clean:
 # Build the workspace (needs "setup" to be run first)
 build:
     bash -c 'source .venv/bin/activate && python -m colcon build --symlink-install'
+    echo "${TERMINAL_COLOR_YELLOW} Do not forget to source: ${TERMINAL_COLOR_CYAN}'source ~/workspace/install/setup.bash' ${TERMINAL_COLOR_YELLOW}or with the alias ${TERMINAL_COLOR_CYAN}'sb'"
 
 # clean the build artefact
 clean:
     bash -c 'source .venv/bin/activate && python -m colcon clean workspace'
-
-# Print what to source (can't do it for you)
-@activate:
-    echo "Run in your shell:"
-    echo "  source .venv/bin/activate"
-    echo "  source install/setup.bash"

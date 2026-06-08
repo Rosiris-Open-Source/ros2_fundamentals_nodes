@@ -61,7 +61,7 @@ ros2 run ping_pong ping_pong_rviz2
 ## 7. RViz setup
 
 Start RViz and set the fixed frame to pong_world or world depending on TF configuration. Add a MarkerArray display for /pong_markers.
-```
+```bash
 rviz2 -d $(ros2 pkg prefix ping_pong)/share/ping_pong/rviz2/ping_pong_game.rviz
 ```
 
