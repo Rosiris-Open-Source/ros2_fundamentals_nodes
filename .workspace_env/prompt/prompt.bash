@@ -49,13 +49,13 @@ source "$(setup_env_dir)/lib/colors.bash"
 # ─────────────────────────────────────────────
 # Git helpers
 # ─────────────────────────────────────────────
-_git_branch() {
+_prompt_git_branch() {
     git branch --show-current 2>/dev/null
 }
 
 _git_remote_symbol() {
     local branch
-    branch="$(_git_branch)"
+    branch="$(_prompt_git_branch)"
     [[ -z "${branch}" ]] && return
 
     local status
@@ -75,7 +75,7 @@ _git_remote_symbol() {
 
 # Returns the colour for the branch name based on working-tree state.
 # Priority: dirty (red) > stash (yellow) > staged (brown/orange) > clean (arg)
-_git_branch_color() {
+_prompt_git_branch_color() {
     local default_color="${1:-${TERMINAL_COLOR_GREEN}}"
     [[ -z "$(git rev-parse --is-inside-work-tree 2>/dev/null)" ]] \
         && echo "${default_color}" && return
@@ -143,14 +143,14 @@ __update_prompt() {
 
     # git
     local branch
-    branch="$(_git_branch)"
+    branch="$(_prompt_git_branch)"
     local git_part=""
     if [[ -n "${branch}" ]]; then
         local symbol
         symbol="$(_git_remote_symbol)"
         [[ -n "${symbol}" ]] && symbol=" ${symbol}"
         local branch_color
-        branch_color="$(_git_branch_color "${TERMINAL_COLOR_GREEN}")"
+        branch_color="$(_prompt_git_branch_color "${TERMINAL_COLOR_GREEN}")"
         # <branch_name[_symbol]>
         git_part="\[${TERMINAL_COLOR_GREEN}\]<\[${branch_color}\]${branch}${symbol}"
     fi
